@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analyze Anything</title>
+<style>
+ body{font:16px system-ui;max-width:900px;margin:2rem auto;padding:0 1rem}
+ textarea{width:100%;height:160px} button{padding:.6rem 1.2rem;margin:.5rem .5rem .5rem 0;cursor:pointer}
+ iframe{width:100%;height:520px;border:1px solid #ccc;margin-top:1rem} #status{color:#666}
+</style></head><body>
+<h1>Analyze Anything</h1>
+<p>Choose a text-based file (txt, csv, md, json, log, code) or paste text. Nothing leaves your browser.</p>
+<input type="file" id="file"><br><br>
+<textarea id="text" placeholder="or paste text / CSV here"></textarea><br>
+<button id="go" disabled>Analyze &amp; build report</button>
+<button id="dl" disabled>Download report (.html)</button>
+<span id="status">Loading engines...</span>
+<iframe id="view" sandbox></iframe>
+
+<script src="analyzer.js"></script>
+<script src="report.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+let cpp, py, name = "Pasted text", html = "";
+const $ = id => document.getElementById(id);
+
+(async () => {
+  cpp = await CppModule();
+  py = await loadPyodide();
+  py.runPython(await (await fetch("analysis.py")).text());
+  $("go").disabled = false;
+  $("status").textContent = "Ready.";
+})();
+
+$("file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  name = f.name; $("text").value = await f.text();
+};
+
+function runCpp(t) {
+  const n = cpp.lengthBytesUTF8(t) + 1, p = cpp._malloc(n);
+  cpp.stringToUTF8(t, p, n);
+  const r = cpp.UTF8ToString(cpp._analyze_text(p));
+  cpp._free(p);
+  return r;
+}
+
+$("go").onclick = () => {
+  const t = $("text").value;
+  if (!t.trim()) { $("status").textContent = "Nothing to analyze."; return; }
+  const cppOut = runCpp(t);
+  const pyOut = py.globals.get("analyze")(t);
+  html = window.javaRender("Analysis report: " + name, cppOut, pyOut, new Date().toLocaleString());
+  $("view").srcdoc = html;
+  $("dl").disabled = false;
+  $("status").textContent = "Done.";
+};
+
+$("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], {type: "text/html"}));
+  a.download = "report.html"; a.click();
+};
+</script></body></html>

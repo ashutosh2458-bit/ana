@@ -1,0 +1,24 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>app</groupId><artifactId>report</artifactId><version>1.0</version><packaging>jar</packaging>
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source><maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <teavm.version>0.10.2</teavm.version>
+  </properties>
+  <dependencies>
+    <dependency><groupId>org.teavm</groupId><artifactId>teavm-jso</artifactId><version>${teavm.version}</version></dependency>
+    <dependency><groupId>org.teavm</groupId><artifactId>teavm-classlib</artifactId><version>${teavm.version}</version></dependency>
+  </dependencies>
+  <build><plugins><plugin>
+    <groupId>org.teavm</groupId><artifactId>teavm-maven-plugin</artifactId><version>${teavm.version}</version>
+    <executions><execution><phase>package</phase><goals><goal>compile</goal></goals>
+      <configuration>
+        <mainClass>app.ReportBuilder</mainClass>
+        <targetDirectory>${project.build.directory}/js</targetDirectory>
+        <targetFileName>report.js</targetFileName>
+        <optimizationLevel>SIMPLE</optimizationLevel>
+      </configuration>
+    </execution></executions>
+  </plugin></plugins></build>
+</project>
