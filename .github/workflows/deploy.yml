@@ -1,0 +1,47 @@
+name: Build and deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Build Java (TeaVM)
+        run: mvn -B -f java/pom.xml package
+      - name: Build C++ (WASM)
+        run: |
+          mkdir site
+          emcc cpp/analyzer.cpp -O2 -o site/analyzer.js \
+            -s MODULARIZE=1 -s EXPORT_NAME=CppModule -s ALLOW_MEMORY_GROWTH=1 \
+            -s EXPORTED_FUNCTIONS='["_analyze_text","_malloc","_free"]' \
+            -s EXPORTED_RUNTIME_METHODS='["lengthBytesUTF8","stringToUTF8","UTF8ToString"]'
+      - name: Assemble site
+        run: |
+          cp web/index.html python/analysis.py site/
+          cp java/target/js/report.js site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
